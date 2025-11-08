@@ -2,22 +2,21 @@ import React from 'react'
 
 export default function HomePage({ onEnter }) {
   return (
-    <div className="home-page">
+    <main className="home-page">
       <img
         src="/HydroShieldLogo.png"
         alt="HydroShield"
-        style={{ maxWidth:640, width:'100%', marginBottom:'2.5rem' }}
       />
-      <p style={{ fontSize:'1.25rem', fontStyle:'italic', marginBottom:'2rem' }}>
+      <p style={{ fontSize:'1.25rem', fontStyle:'italic', margin:0 }}>
         Protect your water. Protect your land. Protect your future.
       </p>
       <button
         className="primary-btn"
-        onClick={onEnter}
+        onClick={() => (onEnter ? onEnter() : (window.location.hash = '#/map'))}
         style={{ fontSize:'1rem', padding:'0.85rem 1.75rem' }}
       >
-        Enter App
+        Get Started
       </button>
-    </div>
+    </main>
   )
 }

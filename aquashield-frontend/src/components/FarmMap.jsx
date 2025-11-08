@@ -13,28 +13,25 @@ import Stroke from 'ol/style/Stroke'
 import Fill from 'ol/style/Fill'
 import Feature from 'ol/Feature'
 import CircleGeom from 'ol/geom/Circle'
+import ImageLayer from 'ol/layer/Image'
+import ImageArcGISRest from 'ol/source/ImageArcGISRest'
+import { getArea as getSphericalArea } from 'ol/sphere'
 import TileArcGISRest from 'ol/source/TileArcGISRest'
 
-// helper: build a canvas clip path from a Polygon or MultiPolygon in EPSG:3857
+// Build a canvas clip path for Polygon or MultiPolygon (EPSG:3857)
 function clipGeomOnCanvas(ctx, map, geom, pixelRatio = 1) {
-  // Normalize: array of polygons; each polygon = array of rings; each ring = array of [x,y]
+  let polys
   const type = geom.getType()
-  let polys = []
-  if (type === 'Polygon') {
-    polys = [geom.getCoordinates()]
-  } else if (type === 'MultiPolygon') {
-    polys = geom.getCoordinates()
-  } else {
-    return false
-  }
+  if (type === 'Polygon') polys = [geom.getCoordinates()]
+  else if (type === 'MultiPolygon') polys = geom.getCoordinates()
+  else return false
 
-  let drewAny = false
+  let drew = false
   ctx.beginPath()
   for (const rings of polys) {
     for (const ring of rings) {
       for (let i = 0; i < ring.length; i++) {
-        const c = ring[i]
-        const px = map.getPixelFromCoordinate(c)
+        const px = map.getPixelFromCoordinate(ring[i])
         if (!px) continue
         const x = px[0] * pixelRatio
         const y = px[1] * pixelRatio
@@ -42,14 +39,25 @@ function clipGeomOnCanvas(ctx, map, geom, pixelRatio = 1) {
         else ctx.lineTo(x, y)
       }
       ctx.closePath()
-      drewAny = true
+      drew = true
     }
   }
-  if (!drewAny) return false
-  // even-odd so holes render correctly
+  if (!drew) return false
   ctx.clip('evenodd')
   return true
 }
+
+// Compute polygon area in km² (geom in 3857)
+function areaKm2(geom3857) {
+  try {
+    const m2 = getSphericalArea(geom3857, { projection: 'EPSG:3857' })
+    return Math.abs(m2) / 1e6
+  } catch {
+    return 0
+  }
+}
+
+const ENABLE_WHP_CLIP = false // prevents crash; set true only after adding clip logic
 
 export default function FarmMap(props) {
   const {
@@ -73,17 +81,17 @@ export default function FarmMap(props) {
   const drawRef = useRef(null)
   const formatRef = useRef(new GeoJSON())
 
-  const whpLayerRef = useRef(null)
+  // WHP layer + handlers
+  const whpImageLayerRef = useRef(null)
   const clipHandlersRef = useRef({ pre: null, post: null })
 
-  // Styles (stroke-only and stroke+fill variants)
-  const savedStrokeOnlyStyle = new Style({
-    stroke: new Stroke({ color: '#22c55e', width: 2 })
-  })
+  // Styles: fill is removed while WHP is shown
+  const savedStrokeOnlyStyle = new Style({ stroke: new Stroke({ color: '#22c55e', width: 2 }) })
   const savedStrokeFillStyle = new Style({
     stroke: new Stroke({ color: '#22c55e', width: 2 }),
     fill: new Fill({ color: 'rgba(34,197,94,0.20)' })
   })
+  const draftStrokeOnlyStyle = new Style({ stroke: new Stroke({ color: '#38bdf8', width: 2, lineDash: [6,6] }) })
   const draftStyle = new Style({
     stroke: new Stroke({ color: '#38bdf8', width: 2, lineDash: [6,6] }),
     fill: new Fill({ color: 'rgba(56,189,248,0.15)' })
@@ -94,8 +102,9 @@ export default function FarmMap(props) {
   })
 
   const [savedLayerRef, setSavedLayerRef] = useState(null)
+  const [draftLayerRef, setDraftLayerRef] = useState(null)
 
-  // Init map once
+  // Init map once (force Canvas renderer so clipping works)
   useEffect(() => {
     if (!mapEl.current) return
     const savedLayer = new VectorLayer({ source: savedSourceRef.current, style: savedStrokeFillStyle })
@@ -106,28 +115,29 @@ export default function FarmMap(props) {
       target: mapEl.current,
       layers: [
         new TileLayer({ source: new OSM() }),
-        // Hazard layer inserted at index 1 later
+        // WHP image layer inserted at index 1 below
         savedLayer,
         draftLayer,
         scenarioLayer
       ],
-      view: new View({ center: [0,0], zoom: 2 })
+      view: new View({ center: [0, 0], zoom: 2 }),
+      renderer: 'canvas'
     })
     mapRef.current = map
     setSavedLayerRef(savedLayer)
+    setDraftLayerRef(draftLayer)
 
-    // Wildfire Hazard Potential (USFS 2020)
-    const whpLayer = new TileLayer({
-      source: new TileArcGISRest({
+    // USFS/Planscape Wildfire Hazard Potential (ImageServer)
+    const whp = new ImageLayer({
+      source: new ImageArcGISRest({
         url: 'https://apps.fs.usda.gov/arcgis/rest/services/EDW/EDW_Wildfire_Hazard_Potential_2020/ImageServer',
         crossOrigin: 'anonymous'
       }),
-      opacity: 0.75,
+      opacity: 0.8,
       visible: false
     })
-    // Insert right after base map so vector strokes draw above it
-    map.getLayers().insertAt(1, whpLayer)
-    whpLayerRef.current = whpLayer
+    map.getLayers().insertAt(1, whp)
+    whpImageLayerRef.current = whp
 
     map.addInteraction(new Modify({ source: draftSourceRef.current }))
     map.addInteraction(new Snap({ source: draftSourceRef.current }))
@@ -236,28 +246,22 @@ export default function FarmMap(props) {
     } catch {}
   }, [scenarioActive, scenarioCenter3857, fireRadiusKm])
 
-  // Hazard overlay + clipping
+  // Show WHP overlay (no clipping) when any polygon (focused | single | draft) exists
   useEffect(() => {
     const map = mapRef.current
-    const whp = whpLayerRef.current
+    const whp = whpImageLayerRef.current
     if (!map || !whp) return
 
-    // Remove old clip handlers
-    if (clipHandlersRef.current.pre) whp.un('prerender', clipHandlersRef.current.pre)
-    if (clipHandlersRef.current.post) whp.un('postrender', clipHandlersRef.current.post)
-    clipHandlersRef.current = { pre: null, post: null }
-
-    // Choose geometry: focused -> single -> draft
     let feature = null
     const focused = lands.find(l => l.id === focusLandId)
     const single = !focused && lands.length === 1 ? lands[0] : null
     try {
       if (focused?.geometry) {
-        feature = formatRef.current.readFeature(focused.geometry, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' })
+        feature = formatRef.current.readFeature(focused.geometry, { dataProjection:'EPSG:4326', featureProjection:'EPSG:3857' })
       } else if (single?.geometry) {
-        feature = formatRef.current.readFeature(single.geometry, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' })
+        feature = formatRef.current.readFeature(single.geometry, { dataProjection:'EPSG:4326', featureProjection:'EPSG:3857' })
       } else if (selectedGeometry) {
-        feature = formatRef.current.readFeature(selectedGeometry, { dataProjection: 'EPSG:4326', featureProjection: 'EPSG:3857' })
+        feature = formatRef.current.readFeature(selectedGeometry, { dataProjection:'EPSG:4326', featureProjection:'EPSG:3857' })
       }
     } catch {}
 
@@ -265,50 +269,28 @@ export default function FarmMap(props) {
     if (!geom) {
       whp.setVisible(false)
       whp.setExtent(undefined)
-      // restore fill when hazard not shown
-      if (savedLayerRef) savedLayerRef.setStyle(savedStrokeFillStyle)
+      savedLayerRef && savedLayerRef.setStyle(savedStrokeFillStyle)
+      draftLayerRef && draftLayerRef.setStyle(draftStyle)
       return
     }
 
-    whp.setExtent(geom.getExtent())
+    // Show hazard tiles
+    try { whp.setExtent(geom.getExtent()) } catch {}
     whp.setVisible(true)
 
-    // Show only stroke on saved polygons so hazard colors inside are visible
-    if (savedLayerRef) savedLayerRef.setStyle(savedStrokeOnlyStyle)
+    // Make polygons stroke-only so colors show
+    savedLayerRef && savedLayerRef.setStyle(savedStrokeOnlyStyle)
+    draftLayerRef && draftLayerRef.setStyle(draftStrokeOnlyStyle)
+  }, [lands, focusLandId, selectedGeometry, savedLayerRef, draftLayerRef])
 
-    const pre = (evt) => {
-      const ctx = evt.context
-      if (!ctx) return
-      ctx.save()
-      const ratio = evt.frameState.pixelRatio || 1
-      const ok = clipGeomOnCanvas(ctx, map, geom, ratio)
-      if (!ok) ctx.restore()
-    }
-    const post = (evt) => { if (evt.context) evt.context.restore() }
-
-    whp.on('prerender', pre)
-    whp.on('postrender', post)
-    clipHandlersRef.current = { pre, post }
-
-    return () => {
-      if (clipHandlersRef.current.pre) whp.un('prerender', clipHandlersRef.current.pre)
-      if (clipHandlersRef.current.post) whp.un('postrender', clipHandlersRef.current.post)
-      clipHandlersRef.current = { pre: null, post: null }
-      // restore style on cleanup
-      if (savedLayerRef) savedLayerRef.setStyle(savedStrokeFillStyle)
-    }
-  }, [focusLandId, lands, selectedGeometry, savedLayerRef])
-
-  // Recenter when an address is located (soft zoom)
+  // Address recenter
   useEffect(() => {
     if (!addressCenter3857 || !mapRef.current) return
-    try {
-      mapRef.current.getView().animate({
-        center: addressCenter3857,
-        zoom: Math.max(12, mapRef.current.getView().getZoom() || 2),
-        duration: 600
-      })
-    } catch {}
+    mapRef.current.getView().animate({
+      center: addressCenter3857,
+      zoom: Math.max(12, mapRef.current.getView().getZoom() || 2),
+      duration: 600
+    })
   }, [addressCenter3857])
 
   return (
