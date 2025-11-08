@@ -10,7 +10,6 @@ function TopBar({ onHome }) {
       >
         HydroShield
       </span>
-      <button className="primary-btn">Run Scenario</button>
     </header>
   )
 }
