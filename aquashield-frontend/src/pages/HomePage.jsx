@@ -1,12 +1,10 @@
 import React from 'react'
 
 export default function HomePage({ onEnter }) {
+  const logoUrl = `${import.meta.env.BASE_URL}HydroShieldLogo.png`
   return (
     <main className="home-page">
-      <img
-        src="/HydroShieldLogo.png"
-        alt="HydroShield"
-      />
+      <img src={logoUrl} alt="HydroShield" />
       <p style={{ fontSize:'1.25rem', fontStyle:'italic', margin:0 }}>
         Protect your water. Protect your land. Protect your future.
       </p>

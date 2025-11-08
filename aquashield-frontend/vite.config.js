@@ -3,9 +3,5 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  resolve: {
-    alias: {
-      'farmos-map': 'farmos-map/dist/index.js'
-    }
-  }
+  base: '/Hydroshield/', // CHANGE to your GitHub repo name, e.g. '/Hydroshield/'
 })
