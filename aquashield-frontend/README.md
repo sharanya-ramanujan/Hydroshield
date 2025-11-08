@@ -1,16 +1,64 @@
-# React + Vite
+# HydroShield (frontend)
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + Vite app for mapping farms and collecting basic irrigation inputs.
 
-Currently, two official plugins are available:
+Features
+- Draw farm boundaries on a map (OpenLayers + OSM).
+- Save farms by name; list and delete saved polygons.
+- Areas shown in acres.
+- Optional quick buttons to capture:
+  - Irrigation zones (name, area in acres; “Whole farm” quick add)
+  - Tank capacity (liters/gallons, approximate toggle)
+  - Pump type & flow (L/min)
+  - Battery & solar specs (kW, kWh, inverter efficiency)
+  - Soil type
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+Tech
+- React 18 + Vite
+- OpenLayers
+- Vanilla CSS
 
-## React Compiler
+Prerequisites
+- Node.js 18+ and npm 9+
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Check versions:
+```bash
+node -v
+npm -v
+```
 
-## Expanding the ESLint configuration
+Run locally (development)
+```bash
+npm install
+npm run dev
+# open the URL shown (typically http://localhost:5173)
+# hard reload if needed: Cmd+Shift+R (macOS)
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+Build and preview (production)
+```bash
+npm run build
+npm run preview
+```
+
+Using the app
+1) Home: click “Enter App”.
+2) Map: click to draw polygon, double‑click to finish.
+3) Save: enter a name and click “Save Farm”.
+4) Manage: view/delete saved polygons; area shows in acres.
+
+Troubleshooting
+- White screen: open DevTools console (Cmd+Option+J) and fix any import/export errors, then hard‑reload.
+- Map blank: ensure `import 'ol/ol.css'` is present in map components and you have internet for OSM tiles.
+- Centered landing page: ensure this CSS exists:
+  ```
+  html, body, #root { height: 100%; margin: 0; }
+  .home-page {
+    min-height: 100vh; display: flex; flex-direction: column;
+    justify-content: center; align-items: center; text-align: center; padding: 2rem;
+  }
+  ```
+
+Notes
+- Map tiles © OpenStreetMap contributors.
+- Data is in-memory only (no backend).
