@@ -3,7 +3,7 @@ import FarmMap from '../components/FarmMap.jsx'
 import LandForm from '../components/LandForm.jsx'
 import LandList from '../components/LandList.jsx'
 
-const MapPage = () => {
+export default function MapPage() {
   const [selectedGeometry, setSelectedGeometry] = useState(null)
   const [lands, setLands] = useState([])
 
@@ -12,37 +12,37 @@ const MapPage = () => {
   }
 
   const handleSaveLand = (landData) => {
-    // attach geometry to land
-    if (!selectedGeometry) {
-      alert('Draw an area on the map first.')
-      return
-    }
-
+    if (!selectedGeometry) return
     const newLand = {
       id: Date.now(),
       ...landData,
-      geometry: selectedGeometry,
+      geometry: selectedGeometry
     }
-
-    setLands((prev) => [...prev, newLand])
-    setSelectedGeometry(null)
+    setLands(prev => [...prev, newLand])
+    setSelectedGeometry(null) // reset for next drawing
   }
 
   return (
     <div className="map-page">
       <div className="map-panel">
-        <FarmMap onGeometryDrawn={handleGeometryDrawn} selectedGeometry={selectedGeometry} />
+        <FarmMap
+            onGeometryDrawn={handleGeometryDrawn}
+            selectedGeometry={selectedGeometry}
+        />
       </div>
       <div className="side-panel">
-        <LandForm onSave={handleSaveLand} hasGeometry={!!selectedGeometry} />
+        <LandForm
+          onSave={handleSaveLand}
+          hasGeometry={!!selectedGeometry}
+        />
+        <div className="panel">
+          <h3 style={{ marginTop: 0 }}>Current Geometry</h3>
+          <pre className="muted" style={{ whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>
+            {selectedGeometry ? JSON.stringify(selectedGeometry.geometry.coordinates[0].length) + ' points' : 'None'}
+          </pre>
+        </div>
         <LandList lands={lands} />
-      </div>
-      <div style={{ padding: '20px', background: '#1f2937', borderRadius: '1rem' }}>
-        <h2>Map Page Placeholder</h2>
-        <p>If you see this, the rest of the app is working correctly.</p>
       </div>
     </div>
   )
 }
-
-export default MapPage

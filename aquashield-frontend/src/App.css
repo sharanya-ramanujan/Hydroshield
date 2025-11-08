@@ -46,21 +46,9 @@ body, html, #root {
   cursor: pointer;
 }
 
-.map-page {
-  flex: 1;
-  display: flex;
-  gap: 1rem;
-  padding: 1rem;
-  overflow: hidden;
-}
-
-.map-panel {
-  flex: 2;
-  background: var(--surface);
-  border-radius: 1rem;
-  overflow: hidden;
-  display: flex;
-}
+.map-page { display: flex; flex: 1; min-height: 0; }
+.map-panel { flex: 1; min-height: 420px; display: flex; }
+.farm-map { flex: 1; }
 
 .farm-map-container {
   flex: 1;
@@ -73,10 +61,12 @@ body, html, #root {
 }
 
 .side-panel {
-  flex: 1;
+  width: 340px;
   display: flex;
   flex-direction: column;
   gap: 1rem;
+  padding: 0.75rem;
+  background: var(--panel);
   overflow-y: auto;
 }
 
