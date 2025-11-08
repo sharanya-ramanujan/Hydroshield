@@ -5,37 +5,31 @@ export default function LandForm({ onSave, hasGeometry }) {
 
   return (
     <form
-      className="land-form panel"
       onSubmit={(e) => {
         e.preventDefault()
         if (!hasGeometry) return
         onSave && onSave({ name })
         setName('')
       }}
+      className="panel"
+      style={{ display:'flex', flexDirection:'column', gap:8 }}
     >
-      <h3 style={{ marginTop: 0 }}>New Land</h3>
-      <label>
-        <span>Name</span>
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Farm parcel name"
-          required
-        />
-      </label>
-      {!hasGeometry && (
-        <div className="warning-text">
-          Draw a polygon on the map first.
-        </div>
-      )}
+      <h3 style={{ margin:0 }}>Add Farm</h3>
+      <input
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        placeholder="Farm name"
+        required
+      />
       <button
         type="submit"
         className="primary-btn"
-        disabled={!hasGeometry || !name.trim()}
-        style={{ cursor: (!hasGeometry || !name.trim()) ? 'not-allowed' : 'pointer' }}
+        disabled={!hasGeometry}
+        style={{ fontSize:12 }}
       >
-        Save Land
+        Save Farm
       </button>
+      {!hasGeometry && <div className="muted" style={{ fontSize:12 }}>Draw a polygon to enable saving.</div>}
     </form>
   )
 }

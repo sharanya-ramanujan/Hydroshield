@@ -6,10 +6,9 @@ import LandList from '../components/LandList.jsx'
 export default function MapPage() {
   const [selectedGeometry, setSelectedGeometry] = useState(null)
   const [lands, setLands] = useState([])
+  const [focusLandId, setFocusLandId] = useState(null)
 
-  const handleGeometryDrawn = (geojson) => {
-    setSelectedGeometry(geojson)
-  }
+  const handleGeometryDrawn = (geojson) => setSelectedGeometry(geojson)
 
   const handleSaveLand = (landData) => {
     if (!selectedGeometry) return
@@ -19,7 +18,8 @@ export default function MapPage() {
       geometry: selectedGeometry
     }
     setLands(prev => [...prev, newLand])
-    setSelectedGeometry(null) // clears draft only; saved features remain visible
+    setSelectedGeometry(null)
+    setFocusLandId(newLand.id) // zoom to new polygon
   }
 
   return (
@@ -28,15 +28,18 @@ export default function MapPage() {
         <FarmMap
           onGeometryDrawn={handleGeometryDrawn}
           selectedGeometry={selectedGeometry}
-          lands={lands}               // pass saved lands to render on map
+          lands={lands}
+          focusLandId={focusLandId}
         />
       </div>
       <div className="side-panel">
         <LandForm onSave={handleSaveLand} hasGeometry={!!selectedGeometry} />
         <div className="panel">
           <h3 style={{ marginTop: 0 }}>Current Geometry</h3>
-          <pre className="muted" style={{ whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>
-            {selectedGeometry ? JSON.stringify(selectedGeometry.geometry.coordinates[0].length) + ' points' : 'None'}
+          <pre className="muted" style={{ whiteSpace:'pre-wrap', maxHeight:160, overflow:'auto' }}>
+            {selectedGeometry
+              ? `${selectedGeometry.geometry.coordinates[0].length} points`
+              : 'None'}
           </pre>
         </div>
         <LandList lands={lands} />

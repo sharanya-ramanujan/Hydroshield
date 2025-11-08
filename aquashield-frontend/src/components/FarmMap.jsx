@@ -12,15 +12,12 @@ import Style from 'ol/style/Style'
 import Stroke from 'ol/style/Stroke'
 import Fill from 'ol/style/Fill'
 
-export default function FarmMap({ onGeometryDrawn, selectedGeometry, lands = [] }) {
+export default function FarmMap({ onGeometryDrawn, selectedGeometry, lands = [], focusLandId }) {
   const mapEl = useRef(null)
   const mapRef = useRef(null)
-
-  // Separate sources: one for saved features, one for draft drawing
   const savedSourceRef = useRef(new VectorSource({ wrapX: false }))
   const draftSourceRef = useRef(new VectorSource({ wrapX: false }))
   const drawRef = useRef(null)
-
   const formatRef = useRef(new GeoJSON())
 
   const savedStyle = new Style({
@@ -28,111 +25,60 @@ export default function FarmMap({ onGeometryDrawn, selectedGeometry, lands = [] 
     fill: new Fill({ color: 'rgba(34,197,94,0.20)' })
   })
   const draftStyle = new Style({
-    stroke: new Stroke({ color: '#38bdf8', width: 2, lineDash: [6, 6] }),
+    stroke: new Stroke({ color: '#38bdf8', width: 2, lineDash: [6,6] }),
     fill: new Fill({ color: 'rgba(56,189,248,0.15)' })
   })
 
-  // Initialize map and layers
   useEffect(() => {
     if (!mapEl.current) return
-
-    const savedLayer = new VectorLayer({
-      source: savedSourceRef.current,
-      style: savedStyle
-    })
-    const draftLayer = new VectorLayer({
-      source: draftSourceRef.current,
-      style: draftStyle
-    })
-
+    const savedLayer = new VectorLayer({ source: savedSourceRef.current, style: savedStyle })
+    const draftLayer = new VectorLayer({ source: draftSourceRef.current, style: draftStyle })
     const map = new Map({
       target: mapEl.current,
-      layers: [
-        new TileLayer({ source: new OSM() }),
-        savedLayer,       // show saved lands
-        draftLayer        // show current drawing
-      ],
-      view: new View({
-        center: [0, 0],
-        zoom: 2
-      })
+      layers: [new TileLayer({ source: new OSM() }), savedLayer, draftLayer],
+      view: new View({ center: [0,0], zoom: 2 })
     })
     mapRef.current = map
+    map.addInteraction(new Modify({ source: draftSourceRef.current }))
+    map.addInteraction(new Snap({ source: draftSourceRef.current }))
+    return () => map.setTarget(null)
+  }, [])
 
-    // Allow modifying draft geometry
-    const modify = new Modify({ source: draftSourceRef.current })
-    map.addInteraction(modify)
-
-    // Snap to vertices while drawing/modifying
-    const snap = new Snap({ source: draftSourceRef.current })
-    map.addInteraction(snap)
-
-    return () => {
-      map.setTarget(null)
-    }
-  }, []) // run once
-
-  // Enable polygon drawing into the draft layer
   useEffect(() => {
     if (!mapRef.current) return
-
-    // Remove existing draw interaction
     if (drawRef.current) {
       mapRef.current.removeInteraction(drawRef.current)
       drawRef.current = null
     }
-
-    const draw = new Draw({
-      source: draftSourceRef.current,
-      type: 'Polygon'
-    })
-
-    draw.on('drawstart', () => {
-      // single-draft workflow: clear previous draft polygon
-      draftSourceRef.current.clear()
-    })
-
+    const draw = new Draw({ source: draftSourceRef.current, type: 'Polygon' })
+    draw.on('drawstart', () => draftSourceRef.current.clear())
     draw.on('drawend', (e) => {
-      // Convert drawn feature to GeoJSON (EPSG:4326 lon/lat)
       const geojson = formatRef.current.writeFeatureObject(e.feature, {
         featureProjection: 'EPSG:3857',
         dataProjection: 'EPSG:4326'
       })
       onGeometryDrawn && onGeometryDrawn(geojson)
-      // Keep draft visible until Save or Clear
     })
-
     mapRef.current.addInteraction(draw)
     drawRef.current = draw
   }, [onGeometryDrawn])
 
-  // Reflect external selectedGeometry: clear draft when it’s reset after save
   useEffect(() => {
-    if (!mapRef.current) return
-    if (!selectedGeometry) {
-      // After Save Land (or Clear), remove draft from map
-      draftSourceRef.current.clear()
-    } else {
-      // If an external geometry is supplied, show it in the draft layer
-      draftSourceRef.current.clear()
+    draftSourceRef.current.clear()
+    if (selectedGeometry) {
       try {
         const feat = formatRef.current.readFeature(selectedGeometry, {
           dataProjection: 'EPSG:4326',
           featureProjection: 'EPSG:3857'
         })
         draftSourceRef.current.addFeature(feat)
-      } catch {
-        // ignore bad geometry
-      }
+      } catch {}
     }
   }, [selectedGeometry])
 
-  // Render saved lands on the saved layer whenever lands change
   useEffect(() => {
-    if (!mapRef.current) return
-    const source = savedSourceRef.current
-    source.clear()
-
+    const src = savedSourceRef.current
+    src.clear()
     const feats = []
     for (const land of lands) {
       if (!land?.geometry) continue
@@ -141,36 +87,42 @@ export default function FarmMap({ onGeometryDrawn, selectedGeometry, lands = [] 
           dataProjection: 'EPSG:4326',
           featureProjection: 'EPSG:3857'
         })
-        // Optionally attach ID/name as properties
-        f.set('name', land.name || '')
         f.setId(land.id)
         feats.push(f)
-      } catch {
-        // skip invalid geometry
-      }
+      } catch {}
     }
-    if (feats.length) {
-      source.addFeatures(feats)
-    }
+    if (feats.length) src.addFeatures(feats)
   }, [lands])
 
+  useEffect(() => {
+    if (!mapRef.current || !focusLandId) return
+    const land = lands.find(l => l.id === focusLandId)
+    if (!land?.geometry) return
+    try {
+      const feat = formatRef.current.readFeature(land.geometry, {
+        dataProjection: 'EPSG:4326',
+        featureProjection: 'EPSG:3857'
+      })
+      mapRef.current.getView().fit(feat.getGeometry().getExtent(), {
+        padding: [40,40,40,40],
+        maxZoom: 18,
+        duration: 400
+      })
+    } catch {}
+  }, [focusLandId, lands])
+
   return (
-    <div style={{ position: 'relative', flex: 1 }}>
+    <div style={{ position:'relative', flex:1 }}>
       <div
         ref={mapEl}
         className="farm-map"
-        style={{ width: '100%', height: '100%', minHeight: 420 }}
+        style={{ width:'100%', height:'100%', minHeight:420 }}
       />
-      <div style={{
-        position: 'absolute',
-        top: 8,
-        left: 8,
-        display: 'flex',
-        gap: '0.5rem'
-      }}>
+      <div style={{ position:'absolute', top:8, left:8, zIndex:10 }}>
         <button
+          type="button"
           className="primary-btn"
-          style={{ fontSize: 12 }}
+          style={{ fontSize:12 }}
           onClick={() => {
             draftSourceRef.current.clear()
             onGeometryDrawn && onGeometryDrawn(null)
