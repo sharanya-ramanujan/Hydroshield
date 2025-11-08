@@ -19,22 +19,20 @@ export default function MapPage() {
       geometry: selectedGeometry
     }
     setLands(prev => [...prev, newLand])
-    setSelectedGeometry(null) // reset for next drawing
+    setSelectedGeometry(null) // clears draft only; saved features remain visible
   }
 
   return (
     <div className="map-page">
       <div className="map-panel">
         <FarmMap
-            onGeometryDrawn={handleGeometryDrawn}
-            selectedGeometry={selectedGeometry}
+          onGeometryDrawn={handleGeometryDrawn}
+          selectedGeometry={selectedGeometry}
+          lands={lands}               // pass saved lands to render on map
         />
       </div>
       <div className="side-panel">
-        <LandForm
-          onSave={handleSaveLand}
-          hasGeometry={!!selectedGeometry}
-        />
+        <LandForm onSave={handleSaveLand} hasGeometry={!!selectedGeometry} />
         <div className="panel">
           <h3 style={{ marginTop: 0 }}>Current Geometry</h3>
           <pre className="muted" style={{ whiteSpace: 'pre-wrap', maxHeight: 160, overflow: 'auto' }}>
