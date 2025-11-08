@@ -202,4 +202,14 @@ body, html, #root {
   max-width: 720px;
 }
 
+/* Markdown‑lite styles */
+.md-box {
+  border: 1px solid #293241;
+  border-radius: 12px;
+  padding: 12px;
+  background: rgba(15,23,42,0.5);
+}
+.md { font-size: 14px; line-height: 1.6; color: var(--text, #e5e7eb); }
+.md strong { color: #fff; }
+
 /* IMPORTANT: remove any accidental secrets from CSS files. */

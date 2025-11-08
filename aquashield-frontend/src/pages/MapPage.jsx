@@ -7,6 +7,7 @@ import LandForm from '../components/LandForm.jsx'
 import LandList from '../components/LandList.jsx'
 import ScenarioPanel from '../components/ScenarioPanel.jsx'
 import { fromLonLat } from 'ol/proj'
+import ErrorBoundary from '../components/ErrorBoundary.jsx'
 
 export default function MapPage() {
   const [selectedGeometry, setSelectedGeometry] = useState(null)
@@ -145,7 +146,11 @@ export default function MapPage() {
 
             <div className="panel">
               <div className="section-title">Wildfire risk & plan</div>
-              <WildfireRiskPanel lands={lands} focusLandId={focusLandId} farmInfo={farmInfo} />
+              <ErrorBoundary
+                fallback={<div className="panel" style={{ color:'#ef4444' }}>Could not render AI assessment.</div>}
+              >
+                <WildfireRiskPanel lands={lands} focusLandId={focusLandId} farmInfo={farmInfo} />
+              </ErrorBoundary>
             </div>
           </>
         ) : (
