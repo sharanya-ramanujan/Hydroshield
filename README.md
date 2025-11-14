@@ -41,7 +41,6 @@ npm run dev
 cd aquashield-frontend
 npm run build
 ```
-Outputs static site in dist/.
 
 ## Deployment (GitHub Pages via Actions)
 1. Ensure `vite.config.js` has: `base: '/<repo-name>/'`
