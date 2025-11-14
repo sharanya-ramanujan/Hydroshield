@@ -13,7 +13,7 @@ Interactive farm resilience planner: map your farm, define irrigation assets (zo
 - Persistent localStorage for farm + setup data
 
 ## Tech Stack
-React (Vite), OpenLayers, optional OpenAI API, CSS custom theming.
+React (Vite), OpenLayers, CSS, JavaScript, Supabase
 
 ## Directory Structure (key parts)
 ```
