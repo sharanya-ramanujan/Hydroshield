@@ -1,33 +1,58 @@
 # HydroShield
 
-Monorepo root for the HydroShield project.
+Interactive farm resilience planner: map your farm, define irrigation assets (zones, tanks, pump, energy, soil), and generate wildfire irrigation continuity guidance with optional AI assessment.
 
-Frontend (React + Vite)
-- Code: ./aquashield-frontend
-- Features:
-  - Draw farm boundaries on a map (OpenLayers + OSM)
-  - Save farms; list and delete saved polygons
-  - Areas shown in acres
-  - Optional quick buttons for zones, tanks, pump, battery/solar, soil
+## Features
+- Farm drawing & multiple land parcels (OpenLayers, EPSG:3857)
+- Irrigation zone management (name, area, crop, schedule)
+- Tank inventory (capacity, units, approximate flag, photo placeholder)
+- Pump & energy inputs (type, flow, solar, battery, inverter efficiency)
+- Soil type selection
+- Wildfire risk heuristic (0–100 preparedness score) + AI assessment (OpenAI Chat Completion)
+- Scenario tools (fire radius, time simulation) (map code intact)
+- Persistent localStorage for farm + setup data
 
-Quick start
-```bash
+## Tech Stack
+React (Vite), OpenLayers, optional OpenAI API, CSS custom theming.
+
+## Directory Structure (key parts)
+```
+aquashield-frontend/
+  src/
+    components/ (FarmInfoPanel, WildfireRiskPanel, map + forms)
+    pages/ (HomePage, MapPage, AuthPage, FarmEditorPage)
+    context/ (AuthProvider)
+    lib/ (supabaseClient.js)
+  public/ (HydroShieldLogo.png)
+.github/workflows/deploy-pages.yml
+```
+
+## Getting Started
+Prerequisites: Node 20+, npm.
+
+```
 cd aquashield-frontend
 npm install
 npm run dev
-# open the URL shown (usually http://localhost:5173)
 ```
 
-Build & preview
-```bash
+## Build
+```
 cd aquashield-frontend
 npm run build
-npm run preview
+```
+Outputs static site in dist/.
+
+## Deployment (GitHub Pages via Actions)
+1. Ensure `vite.config.js` has: `base: '/<repo-name>/'`
+2. Workflow `.github/workflows/deploy-pages.yml` builds `aquashield-frontend/dist`.
+3. Push to `main`; Actions → verify green deploy.
+4. Pages URL: `https://<username>.github.io/<repo-name>/`
+
+Manual check before deploy:
+```
+npm run build
+npx serve dist
 ```
 
-Troubleshooting
-- White screen: open DevTools console and fix any import/export errors, then hard‑reload (Cmd+Shift+R).
-- Map blank: ensure `import 'ol/ol.css'` is present and you have internet for OSM tiles.
-
-More docs
-- Frontend README: [aquashield-frontend/README.md](./aquashield-frontend/README.md)
+---
